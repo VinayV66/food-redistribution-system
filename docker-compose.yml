@@ -1,0 +1,95 @@
+# ============================================================
+# Docker Compose — Smart Food Rescue & Redistribution System
+#
+# Services:
+#   postgres  — PostgreSQL 15 database
+#   redis     — Redis 7 cache
+#   backend   — Spring Boot application
+#   frontend  — React application (Nginx)
+#
+# HOW TO RUN (Windows PowerShell):
+#   docker-compose up --build
+#
+# Stop all:
+#   docker-compose down
+#
+# Stop and delete all data:
+#   docker-compose down -v
+# ============================================================
+
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: food_rescue_postgres
+    environment:
+      POSTGRES_DB: food_rescue_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis Cache ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: food_rescue_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Spring Boot Backend ─────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: food_rescue_backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: food_rescue_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-ChangeThisToALongRandomSecretKeyInProduction2024FoodRescue}
+      JWT_EXPIRATION_MS: 86400000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  # ── React Frontend (served by Nginx) ───────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: food_rescue_frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://localhost:8080
+
+# ── Named Volumes ──────────────────────────────────────────────
+volumes:
+  postgres_data:

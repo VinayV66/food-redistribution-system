@@ -1,0 +1,91 @@
+# =============================================================
+# Smart Food Rescue & Redistribution System
+# Backend Configuration — application.yml
+#
+# ENVIRONMENT VARIABLES (set in .env or Docker):
+#   DB_HOST, DB_PORT, DB_NAME, DB_USERNAME, DB_PASSWORD
+#   JWT_SECRET, JWT_EXPIRATION_MS
+#   REDIS_HOST, REDIS_PORT
+# =============================================================
+
+spring:
+  application:
+    name: food-rescue-backend
+
+  # ── PostgreSQL Database Configuration ──────────────────────
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:food_rescue_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:Vinaykuruba@2005}
+    driver-class-name: org.postgresql.Driver
+
+  # ── JPA / Hibernate ────────────────────────────────────────
+  jpa:
+    hibernate:
+      # 'update' creates/updates tables automatically.
+      # In production, use 'validate' and manage schema with Flyway.
+      ddl-auto: update
+    show-sql: false  # Set to true during development to see SQL
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        # Prevent N+1 queries — batch fetching related entities
+        default_batch_fetch_size: 20
+
+  # ── Redis Cache Configuration ───────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      # If Redis is not available, set REDIS_ENABLED=false in .env
+      # The app still works — cache calls just hit the DB directly.
+
+  # ── Spring Cache ────────────────────────────────────────────
+  cache:
+    type: redis  # Change to 'simple' if Redis is not available
+
+  # ── SQL Initialization (sample data) ───────────────────────
+  sql:
+    init:
+      # DataInitializer.java (Java code) creates sample accounts automatically.
+      # We use 'never' here to avoid SQL script errors on fresh databases.
+      mode: never
+
+  # ── Scheduling (for expiry checks) ─────────────────────────
+  task:
+    scheduling:
+      pool:
+        size: 5
+
+# ── Server Configuration ───────────────────────────────────────
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+
+# ── JWT Configuration ──────────────────────────────────────────
+# IMPORTANT: Change jwt.secret to a long random string in production!
+app:
+  jwt:
+    secret: ${JWT_SECRET:SmartFoodRescueSecretKeyForJWTTokenGenerationChangeThisInProduction2024}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}  # 24 hours in milliseconds
+
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000}
+
+# ── Swagger / OpenAPI ──────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+# ── Logging ────────────────────────────────────────────────────
+logging:
+  level:
+    com.foodrescue: INFO
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN
